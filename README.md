@@ -9,8 +9,7 @@ Utilities for generating nonogram puzzles.
 ### Usage
 
 ```bash
-python3 nonogram_preprocess.py input.jpg output.png --grid-size 25 \
-    --method adaptive --block-size 15 --C 3
+python3 nonogram_preprocess.py input.jpg output.png --grid-size 25 --method adaptive --block-size 100 --C 3
 ```
 
 Key options:

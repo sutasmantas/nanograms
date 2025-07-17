@@ -1,0 +1,127 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Nonogram Preprocess - Default",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "input.jpg",
+                "output.png",
+                "--grid-size", "50",
+                "--method", "adaptive",
+                "--block-size", "15",
+                "--C", "3"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Nonogram Preprocess - Threshold",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "input.jpg",
+                "output_threshold.png",
+                "--grid-size", "50",
+                "--method", "threshold",
+                "--threshold", "128"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Nonogram Preprocess - Otsu",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "input.jpg",
+                "output_otsu.png",
+                "--grid-size", "50",
+                "--method", "otsu"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Nonogram Preprocess - Canny",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "input.jpg",
+                "output_canny.png",
+                "--grid-size", "50",
+                "--method", "canny"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Nonogram Preprocess - Large Grid",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "input.jpg",
+                "output_large.png",
+                "--grid-size", "100",
+                "--method", "adaptive",
+                "--block-size", "21",
+                "--C", "5"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Nonogram Preprocess - Custom",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/nonogram_preprocess.py",
+            "console": "integratedTerminal",
+            "args": [
+                "${input:inputFile}",
+                "${input:outputFile}",
+                "--grid-size", "${input:gridSize}",
+                "--method", "${input:method}"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "inputFile",
+            "description": "Input image file",
+            "default": "input.jpg",
+            "type": "promptString"
+        },
+        {
+            "id": "outputFile",
+            "description": "Output image file",
+            "default": "output.png",
+            "type": "promptString"
+        },
+        {
+            "id": "gridSize",
+            "description": "Grid size (e.g., 50 for 50x50)",
+            "default": "50",
+            "type": "promptString"
+        },
+        {
+            "id": "method",
+            "description": "Binarization method",
+            "default": "adaptive",
+            "type": "pickString",
+            "options": [
+                "threshold",
+                "adaptive",
+                "otsu",
+                "canny"
+            ]
+        }
+    ]
+}
