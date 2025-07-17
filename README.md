@@ -54,3 +54,13 @@ function which returns a `NonogramPuzzle` object containing:
 - `clues_col`: list of column clue lists
 - `grid_shape`: `(height, width)` tuple
 
+## Phase 3: Solution Checking
+
+`nonogram_solver.py` can solve puzzles given row and column clues using
+constraint propagation and backtracking. The solver returns up to two
+solutions so it can determine if a puzzle has zero, one or multiple valid
+solutions.
+
+`adapt_puzzle.py` demonstrates an adaptation loop which tweaks the puzzle grid
+until it becomes uniquely solvable (or the attempts are exhausted).
+
