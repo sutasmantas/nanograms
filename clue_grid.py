@@ -1,13 +1,19 @@
-"""Rendering utilities for nonogram clue grids."""
+"""Rendering utilities for nonogram clue grids.
 
-from typing import List
+`render_clue_grid` can optionally embed a preview of the puzzle image
+in the top-left corner beneath the dimensions label.
+"""
+
+from typing import List, Optional
 from PIL import Image, ImageDraw, ImageFont
+from PIL.Image import Resampling
 
 
 def render_clue_grid(
     row_clues: List[List[int]],
     col_clues: List[List[int]],
     cell_size: int = 20,
+    image_path: Optional[str] = None,
 ) -> Image.Image:
     """Return an image visualizing the puzzle clues with nicer styling."""
     rows, cols = len(row_clues), len(col_clues)
@@ -24,6 +30,19 @@ def render_clue_grid(
 
     # Dimensions label in the top-left corner
     draw.text((4, 4), f"{rows}x{cols}", fill="darkblue", font=font)
+
+    bbox = draw.textbbox((0, 0), "A", font=font)
+    preview_y = bbox[3] + 6
+    if image_path:
+        try:
+            preview = Image.open(image_path).convert("RGB")
+            max_w = row_pad * cell_size
+            max_h = col_pad * cell_size - preview_y - 4
+            if max_w > 5 and max_h > 5:
+                preview.thumbnail((max_w, max_h), Resampling.NEAREST)
+                img.paste(preview, (4, preview_y))
+        except Exception as e:
+            print(f"Failed to load image preview from {image_path}: {e}")
 
     def choose_color(idx: int, max_idx: int) -> str:
         if idx == max_idx // 2:

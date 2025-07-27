@@ -51,7 +51,7 @@ def batch_process_images() -> None:
         return
 
     methods = [
-        {"name": "threshold", "args": ["--method", "threshold", "--threshold", "128"]},
+        # {"name": "threshold", "args": ["--method", "threshold", "--threshold", "128"]}, # TODO MAYBE ADD LATER
         {"name": "adaptive", "args": ["--method", "adaptive", "--block-size", "15", "--C", "3"]},
     ]
     grid_sizes = [50]
@@ -87,7 +87,11 @@ def batch_process_images() -> None:
                     subprocess.run(cmd, check=True, capture_output=True)
                     if validate_or_adapt(str(output_file)):
                         puzzle = puzzle_from_image(str(output_file))
-                        clue_img = render_clue_grid(puzzle.clues_row, puzzle.clues_col)
+                        clue_img = render_clue_grid(
+                            puzzle.clues_row,
+                            puzzle.clues_col,
+                            image_path=str(image_path),
+                        )
                         clue_path = output_folder / f"{method_name}_grid{grid_size}_clues.png"
                         clue_img.save(clue_path)
                     else:
