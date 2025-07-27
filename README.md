@@ -9,7 +9,7 @@ Utilities for generating nonogram puzzles.
 ### Usage
 
 ```bash
-python3 nonogram_preprocess.py input.jpg output.png --grid-size 25 --method adaptive --block-size 100 --C 3
+python nonogram_preprocess.py input.jpg output.png --grid-size 25 --method adaptive --block-size 100 --C 3
 ```
 
 Key options:
@@ -43,7 +43,7 @@ Example:
 ### Usage
 
 ```bash
-python3 nonogram_clues.py output.png
+python nonogram_clues.py output.png
 ```
 
 This prints the grid dimensions along with `Row clues` and `Column clues` lists.
@@ -53,4 +53,14 @@ function which returns a `NonogramPuzzle` object containing:
 - `clues_row`: list of row clue lists
 - `clues_col`: list of column clue lists
 - `grid_shape`: `(height, width)` tuple
+
+## Phase 3: Solution Checking
+
+`nonogram_solver.py` can solve puzzles given row and column clues using
+constraint propagation and backtracking. The solver returns up to two
+solutions so it can determine if a puzzle has zero, one or multiple valid
+solutions.
+
+`adapt_puzzle.py` demonstrates an adaptation loop which tweaks the puzzle grid
+until it becomes uniquely solvable (or the attempts are exhausted).
 
