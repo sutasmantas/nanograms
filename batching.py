@@ -52,7 +52,6 @@ def batch_process_images() -> None:
     methods = [
         {"name": "threshold", "args": ["--method", "threshold", "--threshold", "128"]},
         {"name": "adaptive", "args": ["--method", "adaptive", "--block-size", "15", "--C", "3"]},
-        {"name": "adaptive_large", "args": ["--method", "adaptive", "--block-size", "21", "--C", "5"]},
     ]
     grid_sizes = [50]
 
