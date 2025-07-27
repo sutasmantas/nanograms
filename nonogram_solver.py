@@ -1,116 +1,156 @@
-"""Nonogram solver using constraint propagation and backtracking."""
+"""Improved Nonogram solver with lazy pattern generation, uniqueness verification,
+and debug logging to help trace unsolvable cases.
+"""
 
-from typing import List, Optional
-
+from typing import List, Optional, Generator
+from itertools import tee
 
 Grid = List[List[int]]  # 0/1 values
 
+DEBUG = False  # Set to True to enable step-wise logging
 
-def line_possibilities(length: int, clues: List[int]) -> List[List[int]]:
-    """Generate all binary lines of given length that satisfy clues."""
+def debug_print(*args):
+    if DEBUG:
+        print("[DEBUG]", *args)
+
+def line_possibilities_lazy(length: int, clues: List[int]) -> Generator[List[int], None, None]:
+    """Lazily generate all binary lines of given length that satisfy clues."""
     if clues == [0]:
-        return [[0] * length]
-    results: List[List[int]] = []
+        yield [0] * length
+        return
 
-    def helper(idx: int, clue_idx: int, line: List[int]):
+    def helper(pos: int, clue_idx: int, line: List[int]):
         if clue_idx == len(clues):
-            # fill rest with zeros
-            results.append(line + [0] * (length - idx))
+            if len(line) < length:
+                line += [0] * (length - len(line))
+            if len(line) == length:
+                yield line
             return
+
         run = clues[clue_idx]
-        max_start = length - run
-        while idx <= max_start:
-            new_line = line + [0] * (idx - len(line)) + [1] * run
-            next_idx = idx + run
-            if next_idx < length:
+        max_start = length - sum(clues[clue_idx:]) - (len(clues) - clue_idx - 1)
+        for start in range(pos, max_start + 1):
+            new_line = line + [0] * (start - len(line)) + [1] * run
+            if len(new_line) < length:
                 new_line.append(0)
-                helper(next_idx + 1, clue_idx + 1, new_line)
-            else:
-                helper(next_idx, clue_idx + 1, new_line)
-            idx += 1
+            yield from helper(start + run + 1, clue_idx + 1, new_line)
 
-    helper(0, 0, [])
-    return results
+    yield from helper(0, 0, [])
 
 
-def propagate(grid: Grid, row_poss: List[List[List[int]]], col_poss: List[List[List[int]]]) -> bool:
-    changed = True
+def intersect_patterns(patterns: Generator[List[int], None, None], length: int) -> Optional[List[int]]:
+    found = False
+    for pattern in patterns:
+        if not found:
+            mask = pattern[:]
+            found = True
+        else:
+            for i in range(length):
+                if mask[i] != pattern[i]:
+                    mask[i] = -1  # unknown
+    return mask if found else None
+
+
+def propagate(grid: Grid, row_clues: List[List[int]], col_clues: List[List[int]]) -> bool:
     h, w = len(grid), len(grid[0])
+    changed = True
     while changed:
         changed = False
-        # filter row possibilities based on current grid
         for i in range(h):
-            new_poss = [p for p in row_poss[i] if all(grid[i][j] == -1 or grid[i][j] == p[j] for j in range(w))]
-            if not new_poss:
+            if -1 not in grid[i]:
+                continue
+            gen = (p for p in line_possibilities_lazy(w, row_clues[i]) if all(grid[i][j] in (-1, p[j]) for j in range(w)))
+            gen, gen_copy = tee(gen)
+            intersection = intersect_patterns(gen, w)
+            has_any = next(gen_copy, None) is not None
+            debug_print(f"Row {i} patterns exist: {has_any}, intersection: {intersection}")
+            if intersection is None or not has_any:
+                debug_print(f"Contradiction found in row {i}")
                 return False
-            row_poss[i] = new_poss
             for j in range(w):
-                vals = {p[j] for p in new_poss}
-                if len(vals) == 1 and grid[i][j] == -1:
-                    grid[i][j] = vals.pop()
+                if grid[i][j] == -1 and intersection[j] != -1:
+                    grid[i][j] = intersection[j]
                     changed = True
-        # filter column possibilities
+
         for j in range(w):
-            new_poss = [p for p in col_poss[j] if all(grid[i][j] == -1 or grid[i][j] == p[i] for i in range(h))]
-            if not new_poss:
+            col = [grid[i][j] for i in range(h)]
+            if -1 not in col:
+                continue
+            gen = (p for p in line_possibilities_lazy(h, col_clues[j]) if all(col[i] in (-1, p[i]) for i in range(h)))
+            gen, gen_copy = tee(gen)
+            intersection = intersect_patterns(gen, h)
+            has_any = next(gen_copy, None) is not None
+            debug_print(f"Col {j} patterns exist: {has_any}, intersection: {intersection}")
+            if intersection is None or not has_any:
+                debug_print(f"Contradiction found in column {j}")
                 return False
-            col_poss[j] = new_poss
             for i in range(h):
-                vals = {p[i] for p in new_poss}
-                if len(vals) == 1 and grid[i][j] == -1:
-                    grid[i][j] = vals.pop()
+                if grid[i][j] == -1 and intersection[i] != -1:
+                    grid[i][j] = intersection[i]
                     changed = True
     return True
 
 
+def validate_solution(grid: Grid, row_clues: List[List[int]], col_clues: List[List[int]]) -> bool:
+    def line_to_clues(line: List[int]) -> List[int]:
+        result, count = [], 0
+        for val in line:
+            if val == 1:
+                count += 1
+            elif count:
+                result.append(count)
+                count = 0
+        if count:
+            result.append(count)
+        return result or [0]
+
+    for i, row in enumerate(grid):
+        clues = line_to_clues(row)
+        if clues != row_clues[i]:
+            debug_print(f"Row {i} failed validation: {clues} != {row_clues[i]}")
+            return False
+
+    for j in range(len(grid[0])):
+        col = [grid[i][j] for i in range(len(grid))]
+        clues = line_to_clues(col)
+        if clues != col_clues[j]:
+            debug_print(f"Col {j} failed validation: {clues} != {col_clues[j]}")
+            return False
+
+    return True
+
+
 def solve_nonogram(clues_row: List[List[int]], clues_col: List[List[int]], max_solutions: int = 2) -> List[Grid]:
-    """Return up to max_solutions solutions for the puzzle."""
     h, w = len(clues_row), len(clues_col)
-    row_poss = [line_possibilities(w, clue) for clue in clues_row]
-    col_poss = [line_possibilities(h, clue) for clue in clues_col]
-    grid: Grid = [[-1 for _ in range(w)] for _ in range(h)]  # -1 unknown
+    grid: Grid = [[-1] * w for _ in range(h)]
     solutions: List[Grid] = []
 
-    def backtrack() -> None:
+    def backtrack():
         if len(solutions) >= max_solutions:
             return
-        if not propagate(grid, row_poss, col_poss):
+        if not propagate(grid, clues_row, clues_col):
             return
-        # check if solved
-        if all(all(cell != -1 for cell in row) for row in grid):
-            solutions.append([row[:] for row in grid])
+        if all(all(c != -1 for c in row) for row in grid):
+            if validate_solution(grid, clues_row, clues_col):
+                solutions.append([r[:] for r in grid])
+            else:
+                debug_print("Grid fully filled but violates clues.")
             return
-        # choose row with minimal possibilities >1
-        candidate_rows = [(i, len(row_poss[i])) for i in range(h) if len(row_poss[i]) > 1]
-        candidate_cols = [(j, len(col_poss[j])) for j in range(w) if len(col_poss[j]) > 1]
-        if candidate_rows:
-            i = min(candidate_rows, key=lambda x: x[1])[0]
-            poss = row_poss[i][:]
-            for pattern in poss:
-                backup_grid = [r[:] for r in grid]
-                backup_row = row_poss[i][:]
-                row_poss[i] = [pattern]
-                grid[i] = pattern[:]
-                backtrack()
-                row_poss[i] = backup_row
-                grid[i] = backup_grid[i]
-                if len(solutions) >= max_solutions:
+
+        for i in range(h):
+            if -1 in grid[i]:
+                line_gen = [p for p in line_possibilities_lazy(w, clues_row[i]) if all(grid[i][j] in (-1, p[j]) for j in range(w))]
+                if not line_gen:
+                    debug_print(f"No valid row patterns to backtrack row {i}")
                     return
-        elif candidate_cols:
-            j = min(candidate_cols, key=lambda x: x[1])[0]
-            poss = col_poss[j][:]
-            for pattern in poss:
-                backup_grid = [r[:] for r in grid]
-                backup_col = col_poss[j][:]
-                for k in range(h):
-                    grid[k][j] = pattern[k]
-                col_poss[j] = [pattern]
-                backtrack()
-                for k in range(h):
-                    grid[k][j] = backup_grid[k][j]
-                col_poss[j] = backup_col
-                if len(solutions) >= max_solutions:
-                    return
+                for pattern in line_gen:
+                    backup = [r[:] for r in grid]
+                    grid[i] = pattern[:]
+                    backtrack()
+                    if len(solutions) >= max_solutions:
+                        return
+                    grid[:] = backup
+                return
 
     backtrack()
     return solutions

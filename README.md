@@ -9,7 +9,7 @@ Utilities for generating nonogram puzzles.
 ### Usage
 
 ```bash
-python3 nonogram_preprocess.py input.jpg output.png --grid-size 25 --method adaptive --block-size 100 --C 3
+python nonogram_preprocess.py input.jpg output.png --grid-size 25 --method adaptive --block-size 100 --C 3
 ```
 
 Key options:
@@ -43,7 +43,7 @@ Example:
 ### Usage
 
 ```bash
-python3 nonogram_clues.py output.png
+python nonogram_clues.py output.png
 ```
 
 This prints the grid dimensions along with `Row clues` and `Column clues` lists.
