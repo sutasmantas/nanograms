@@ -87,7 +87,11 @@ def batch_process_images() -> None:
                     subprocess.run(cmd, check=True, capture_output=True)
                     if validate_or_adapt(str(output_file)):
                         puzzle = puzzle_from_image(str(output_file))
-                        clue_img = render_clue_grid(puzzle.clues_row, puzzle.clues_col)
+                        clue_img = render_clue_grid(
+                            puzzle.clues_row,
+                            puzzle.clues_col,
+                            image_path=str(output_file),
+                        )
                         clue_path = output_folder / f"{method_name}_grid{grid_size}_clues.png"
                         clue_img.save(clue_path)
                     else:
