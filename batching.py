@@ -8,9 +8,10 @@ from typing import List
 import numpy as np
 from PIL import Image
 
-from nonogram_clues import load_grid, extract_clues
+from nonogram_clues import load_grid, extract_clues, puzzle_from_image
 from nonogram_solver import solve_nonogram
 from adapt_puzzle import grid_from_array, adapt_grid_for_unique_solution
+from clue_grid import render_clue_grid
 
 
 def validate_or_adapt(puzzle_path: str) -> bool:
@@ -84,7 +85,12 @@ def batch_process_images() -> None:
                 try:
                     print(f"  Creating {method_name} (grid {grid_size})...")
                     subprocess.run(cmd, check=True, capture_output=True)
-                    if not validate_or_adapt(str(output_file)):
+                    if validate_or_adapt(str(output_file)):
+                        puzzle = puzzle_from_image(str(output_file))
+                        clue_img = render_clue_grid(puzzle.clues_row, puzzle.clues_col)
+                        clue_path = output_folder / f"{method_name}_grid{grid_size}_clues.png"
+                        clue_img.save(clue_path)
+                    else:
                         output_file.unlink(missing_ok=True)
                         bad_log.write(f"{image_path} - {method_name} grid{grid_size} invalid\n")
                         print("    Invalid puzzle, logged.")
