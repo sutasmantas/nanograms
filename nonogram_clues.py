@@ -18,6 +18,20 @@ def load_grid(path: str) -> np.ndarray:
     return (arr == 0).astype(np.uint8)
 
 
+def trim_grid(grid: np.ndarray) -> np.ndarray:
+    """Trim empty rows/columns from the borders of the grid."""
+    rows = np.any(grid, axis=1)
+    cols = np.any(grid, axis=0)
+    if not rows.any() or not cols.any():
+        return grid
+
+    top = rows.argmax()
+    bottom = len(rows) - rows[::-1].argmax()
+    left = cols.argmax()
+    right = len(cols) - cols[::-1].argmax()
+    return grid[top:bottom, left:right]
+
+
 def rle_line(line: np.ndarray) -> list:
     """Run-length encode a 1D binary array of a row or column."""
     clues = []
@@ -45,8 +59,13 @@ def extract_clues(grid: np.ndarray) -> tuple:
 
 def puzzle_from_image(path: str) -> NonogramPuzzle:
     grid = load_grid(path)
+    grid = trim_grid(grid)
     clues_row, clues_col = extract_clues(grid)
-    return NonogramPuzzle(clues_row=clues_row, clues_col=clues_col, grid_shape=grid.shape)
+    return NonogramPuzzle(
+        clues_row=clues_row,
+        clues_col=clues_col,
+        grid_shape=grid.shape,
+    )
 
 
 def main() -> None:
