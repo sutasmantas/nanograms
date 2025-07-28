@@ -21,6 +21,8 @@ def validate_or_adapt(puzzle_path: str) -> bool:
     solutions = solve_nonogram(clues_row, clues_col, max_solutions=2)
     if len(solutions) == 1:
         return True
+    else:
+        print(f"Puzzle at {puzzle_path} has {len(solutions)} solutions, adapting...")
 
     grid = grid_from_array(arr)
     grid, ok = adapt_grid_for_unique_solution(grid)
@@ -86,7 +88,9 @@ def batch_process_images() -> None:
                     print(f"  Creating {method_name} (grid {grid_size})...")
                     subprocess.run(cmd, check=True, capture_output=True)
                     if validate_or_adapt(str(output_file)):
+                        print(f"    Valid puzzle created: {output_file}")
                         puzzle = puzzle_from_image(str(output_file))
+                        print("   Puzzle made")
                         clue_img = render_clue_grid(
                             puzzle.clues_row,
                             puzzle.clues_col,
