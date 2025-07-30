@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from typing import List, Tuple
+from typing import List, Tuple, Set, Dict
 
 Grid = List[List[int]]
 
@@ -11,21 +11,47 @@ def make_transition_matrix(
     Build transition matrix from clues (e.g. [3, 2]) for AddAutomaton.
     Returns: transitions, initial_state, final_state, input_domain, final_states
     """
-    transitions = []
+    # Build base transitions according to the clue pattern
+    base: List[Tuple[int, int, int]] = []
     state = 0
+
+    # Build transitions following the standard nonogram automaton
     for idx, run in enumerate(clues):
-        transitions.append((state, 0, state))  # loop on 0s (optional)
+        # leading zeros or zeros between runs
+        base.append((state, 0, state))
         for _ in range(run):
-            transitions.append((state, 1, state + 1))
+            base.append((state, 1, state + 1))
             state += 1
         if idx < len(clues) - 1:
-            transitions.append((state, 0, state + 1))  # mandatory 0 between blocks
+            base.append((state, 0, state + 1))
             state += 1
-    transitions.append((state, 0, state))  # trailing 0s
-    num_states = state + 1
+
+    base.append((state, 0, state))  # trailing zeros
+    final_state = state
+
+    # Add a sink state to satisfy AddAutomaton's requirement that every
+    # (state, label) pair has a transition.
+    # Remove duplicates and ensure exactly one transition per (state, label)
+    trans_map: Dict[Tuple[int, int], int] = {}
+    for s, a, t in base:
+        trans_map[(s, a)] = t
+
+    sink = final_state + 1
+    for s in range(sink):
+        for a in (0, 1):
+            if (s, a) not in trans_map:
+                trans_map[(s, a)] = sink
+
+    trans_map[(sink, 0)] = sink
+    trans_map[(sink, 1)] = sink
+
+    transitions = [(s, a, t) for (s, a), t in sorted(trans_map.items())]
+
+    num_states = sink + 1
     input_domain = [0, 1]
     initial_state = 0
-    final_states = [state]
+    final_states = [final_state]
+
     return transitions, initial_state, num_states, input_domain, final_states
 
 
