@@ -11,7 +11,7 @@ def grid_from_array(arr) -> Grid:
     return [[int(x) for x in row] for row in arr]
 
 
-def adapt_grid_for_unique_solution(grid: Grid, max_attempts: int = 10) -> Tuple[Grid, bool]:
+def adapt_grid_for_unique_solution(grid: Grid, max_attempts: int = 1000) -> Tuple[Grid, bool]:
     """Return a modified grid with a unique solution if possible."""
     import numpy as np
 
