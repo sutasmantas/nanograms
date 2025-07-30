@@ -54,7 +54,7 @@ def test_simple_puzzle():
     for i, solution in enumerate(solutions):
         print_grid(solution, f"Solution {i + 1}")
 
-    return len(solutions) == 1
+    assert len(solutions) == 1
 
 
 def test_harder_puzzle():
@@ -88,7 +88,7 @@ def test_harder_puzzle():
     for i, solution in enumerate(solutions):
         print_grid(solution, f"Solution {i + 1}")
 
-    return len(solutions) >= 1
+    assert len(solutions) >= 1
 
 
 def test_from_image():
@@ -116,11 +116,12 @@ def test_from_image():
         for i, solution in enumerate(solutions):
             print_grid(solution, f"Solution {i + 1}")
 
-        return len(solutions) >= 1
+        assert len(solutions) >= 1
+        return
     else:
         print("No output.png found. Generate one first with:")
         print("python nonogram_preprocess.py input.jpg output.png --grid-size 10")
-        return True
+        return
 
 
 def test_unsolvable_puzzle():
@@ -153,7 +154,7 @@ def test_unsolvable_puzzle():
     for i, solution in enumerate(solutions):
         print_grid(solution, f"Solution {i + 1}")
 
-    return len(solutions) == 0
+    assert len(solutions) == 0
 
 def test_multiple_solutions():
     """Test a puzzle with multiple valid solutions."""
@@ -181,7 +182,17 @@ def test_multiple_solutions():
     for i, solution in enumerate(solutions):
         print_grid(solution, f"Solution {i + 1}")
 
-    return len(solutions) > 1
+    assert len(solutions) > 1
+
+
+def test_empty_puzzle():
+    """Puzzle with no filled cells should have a single all-zero solution."""
+    clues_row = [[0], [0]]
+    clues_col = [[0], [0]]
+
+    solutions = solve_nonogram(clues_row, clues_col, max_solutions=2)
+    assert len(solutions) == 1
+    assert solutions[0] == [[0, 0], [0, 0]]
 
 
 if __name__ == "__main__":
@@ -199,8 +210,10 @@ if __name__ == "__main__":
     results = []
     for test_name, test_func in tests:
         try:
-            result = test_func()
-            results.append((test_name, "PASS" if result else "FAIL"))
+            test_func()
+            results.append((test_name, "PASS"))
+        except AssertionError:
+            results.append((test_name, "FAIL"))
         except Exception as e:
             print(f"Error in {test_name}: {e}")
             results.append((test_name, "ERROR"))
