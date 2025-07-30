@@ -57,7 +57,7 @@ def batch_process_images() -> None:
         {"name": "adaptive", "args": ["--method", "adaptive", "--block-size", "15", "--C", "3"]},
     ]
     grid_sizes = [50]
-
+    image_files = image_files[:1]
     print(f"Found {len(image_files)} images to process")
 
     for idx, image_path in enumerate(image_files):

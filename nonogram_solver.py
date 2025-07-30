@@ -1,164 +1,76 @@
-"""Improved Nonogram solver with lazy pattern generation, uniqueness verification,
-and debug logging to help trace unsolvable cases. Includes memoization,
-row pattern prioritization, and full-line probing for better performance.
-"""
+from ortools.sat.python import cp_model
+from typing import List, Tuple
 
-from typing import List, Optional, Generator, Tuple
-from itertools import tee
-from functools import lru_cache
-
-Grid = List[List[int]]  # 0/1 values
-
-DEBUG = False  # Set to True to enable step-wise logging
-
-def debug_print(*args):
-    if DEBUG:
-        print("[DEBUG]", *args)
-
-@lru_cache(maxsize=None)
-def line_possibilities_cached(length: int, clues_key: Tuple[int, ...]) -> List[List[int]]:
-    clues = list(clues_key)
-    results = []
-
-    if clues == [0]:
-        return [[0] * length]
-
-    def helper(pos: int, clue_idx: int, line: List[int]):
-        if clue_idx == len(clues):
-            if len(line) < length:
-                line += [0] * (length - len(line))
-            if len(line) == length:
-                results.append(line)
-            return
-
-        run = clues[clue_idx]
-        max_start = length - sum(clues[clue_idx:]) - (len(clues) - clue_idx - 1)
-        for start in range(pos, max_start + 1):
-            new_line = line + [0] * (start - len(line)) + [1] * run
-            if len(new_line) < length:
-                new_line.append(0)
-            helper(start + run + 1, clue_idx + 1, new_line)
-
-    helper(0, 0, [])
-    return results
+Grid = List[List[int]]
 
 
-def intersect_patterns(patterns: List[List[int]], length: int) -> Optional[List[int]]:
-    if not patterns:
-        return None
-    mask = patterns[0][:]
-    for pattern in patterns[1:]:
-        for i in range(length):
-            if mask[i] != pattern[i]:
-                mask[i] = -1
-    return mask
+def make_transition_matrix(
+    clues: List[int],
+) -> Tuple[List[Tuple[int, int, int]], int, int, List[int], List[int]]:
+    """
+    Build transition matrix from clues (e.g. [3, 2]) for AddAutomaton.
+    Returns: transitions, initial_state, final_state, input_domain, final_states
+    """
+    transitions = []
+    state = 0
+    for idx, run in enumerate(clues):
+        transitions.append((state, 0, state))  # loop on 0s (optional)
+        for _ in range(run):
+            transitions.append((state, 1, state + 1))
+            state += 1
+        if idx < len(clues) - 1:
+            transitions.append((state, 0, state + 1))  # mandatory 0 between blocks
+            state += 1
+    transitions.append((state, 0, state))  # trailing 0s
+    num_states = state + 1
+    input_domain = [0, 1]
+    initial_state = 0
+    final_states = [state]
+    return transitions, initial_state, num_states, input_domain, final_states
 
 
-def propagate(grid: Grid, row_clues: List[List[int]], col_clues: List[List[int]]) -> bool:
-    h, w = len(grid), len(grid[0])
-    changed = True
-    while changed:
-        changed = False
-        for i in range(h):
-            if -1 not in grid[i]:
-                continue
-            all_patterns = line_possibilities_cached(w, tuple(row_clues[i]))
-            filtered = [p for p in all_patterns if all(grid[i][j] in (-1, p[j]) for j in range(w))]
-            intersection = intersect_patterns(filtered, w)
-            debug_print(f"Row {i} filtered: {len(filtered)}")
-            if not filtered or intersection is None:
-                debug_print(f"Contradiction found in row {i}")
-                return False
-            for j in range(w):
-                if grid[i][j] == -1 and intersection[j] != -1:
-                    grid[i][j] = intersection[j]
-                    changed = True
+def solve_nonogram(
+    row_clues: List[List[int]], col_clues: List[List[int]], max_solutions: int = 2
+) -> List[Grid]:
+    model = cp_model.CpModel()
+    h, w = len(row_clues), len(col_clues)
 
-        for j in range(w):
-            col = [grid[i][j] for i in range(h)]
-            if -1 not in col:
-                continue
-            all_patterns = line_possibilities_cached(h, tuple(col_clues[j]))
-            filtered = [p for p in all_patterns if all(col[i] in (-1, p[i]) for i in range(h))]
-            intersection = intersect_patterns(filtered, h)
-            debug_print(f"Col {j} filtered: {len(filtered)}")
-            if not filtered or intersection is None:
-                debug_print(f"Contradiction found in column {j}")
-                return False
-            for i in range(h):
-                if grid[i][j] == -1 and intersection[i] != -1:
-                    grid[i][j] = intersection[i]
-                    changed = True
-    return True
+    grid = [
+        [model.NewIntVar(0, 1, f"cell_{r}_{c}") for c in range(w)] for r in range(h)
+    ]
 
+    for r, clues in enumerate(row_clues):
+        row = grid[r]
+        transitions, q0, n, sigma, final = make_transition_matrix(
+            clues if clues else [0]
+        )
+        model.AddAutomaton(row, q0, final, transitions)
 
-def validate_solution(grid: Grid, row_clues: List[List[int]], col_clues: List[List[int]]) -> bool:
-    def line_to_clues(line: List[int]) -> List[int]:
-        result, count = [], 0
-        for val in line:
-            if val == 1:
-                count += 1
-            elif count:
-                result.append(count)
-                count = 0
-        if count:
-            result.append(count)
-        return result or [0]
+    for c, clues in enumerate(col_clues):
+        col = [grid[r][c] for r in range(h)]
+        transitions, q0, n, sigma, final = make_transition_matrix(
+            clues if clues else [0]
+        )
+        model.AddAutomaton(col, q0, final, transitions)
 
-    for i, row in enumerate(grid):
-        clues = line_to_clues(row)
-        if clues != row_clues[i]:
-            debug_print(f"Row {i} failed validation: {clues} != {row_clues[i]}")
-            return False
+    solver = cp_model.CpSolver()
+    # Fix: Use enumerate_all_solutions instead of max_number_of_solutions
+    solver.parameters.enumerate_all_solutions = True
 
-    for j in range(len(grid[0])):
-        col = [grid[i][j] for i in range(len(grid))]
-        clues = line_to_clues(col)
-        if clues != col_clues[j]:
-            debug_print(f"Col {j} failed validation: {clues} != {col_clues[j]}")
-            return False
+    class SolutionCollector(cp_model.CpSolverSolutionCallback):
+        def __init__(self, max_sols: int):
+            super().__init__()
+            self.solutions = []
+            self.max_solutions = max_sols
 
-    return True
-
-
-def solve_nonogram(clues_row: List[List[int]], clues_col: List[List[int]], max_solutions: int = 2) -> List[Grid]:
-    h, w = len(clues_row), len(clues_col)
-    grid: Grid = [[-1] * w for _ in range(h)]
-    solutions: List[Grid] = []
-
-    def backtrack():
-        if len(solutions) >= max_solutions:
-            return
-        if not propagate(grid, clues_row, clues_col):
-            return
-        if all(all(c != -1 for c in row) for row in grid):
-            if validate_solution(grid, clues_row, clues_col):
-                solutions.append([r[:] for r in grid])
-            else:
-                debug_print("Grid fully filled but violates clues.")
-            return
-
-        # Pick row with smallest number of possible patterns
-        row_options = []
-        for i in range(h):
-            if -1 in grid[i]:
-                all_patterns = line_possibilities_cached(w, tuple(clues_row[i]))
-                filtered = [p for p in all_patterns if all(grid[i][j] in (-1, p[j]) for j in range(w))]
-                if not filtered:
-                    return
-                row_options.append((len(filtered), i, filtered))
-
-        if not row_options:
-            return
-
-        _, row_idx, patterns = min(row_options, key=lambda x: x[0])
-        for pattern in patterns:
-            backup = [r[:] for r in grid]
-            grid[row_idx] = pattern[:]
-            backtrack()
-            if len(solutions) >= max_solutions:
+        def on_solution_callback(self):
+            if len(self.solutions) >= self.max_solutions:
+                self.StopSearch()
                 return
-            grid[:] = backup
 
-    backtrack()
-    return solutions
+            solution = [[self.Value(grid[r][c]) for c in range(w)] for r in range(h)]
+            self.solutions.append(solution)
+
+    collector = SolutionCollector(max_solutions)
+    solver.SearchForAllSolutions(model, collector)
+    return collector.solutions
