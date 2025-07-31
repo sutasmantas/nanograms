@@ -11,7 +11,7 @@ from PIL import Image
 from nonogram_clues import load_grid, extract_clues, puzzle_from_image
 from nonogram_solver import solve_nonogram
 from adapt_puzzle import grid_from_array, adapt_grid_for_unique_solution
-from clue_grid import render_clue_grid
+from clue_grid import save_clue_grid_pdf
 
 
 def validate_or_adapt(puzzle_path: str) -> bool:
@@ -91,13 +91,13 @@ def batch_process_images() -> None:
                         print(f"    Valid puzzle created: {output_file}")
                         puzzle = puzzle_from_image(str(output_file))
                         print("   Puzzle made")
-                        clue_img = render_clue_grid(
+                        clue_path = output_folder / f"{method_name}_grid{grid_size}_clues.pdf"
+                        save_clue_grid_pdf(
                             puzzle.clues_row,
                             puzzle.clues_col,
+                            str(clue_path),
                             image_path=str(image_path),
                         )
-                        clue_path = output_folder / f"{method_name}_grid{grid_size}_clues.png"
-                        clue_img.save(clue_path)
                     else:
                         output_file.unlink(missing_ok=True)
                         bad_log.write(f"{image_path} - {method_name} grid{grid_size} invalid\n")

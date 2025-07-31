@@ -7,6 +7,9 @@ in the top-left corner beneath the dimensions label.
 from typing import List, Optional
 from PIL import Image, ImageDraw, ImageFont
 from PIL.Image import Resampling
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.lib.utils import ImageReader
 
 
 def render_clue_grid(
@@ -82,3 +85,44 @@ def render_clue_grid(
             draw.text((x, y), str(num), fill="black", font=font)
 
     return img
+
+
+def _save_image_as_a4_pdf(img: Image.Image, pdf_path: str) -> None:
+    """Save a PIL image to an A4 PDF page without white borders."""
+    if img.width > img.height:
+        page_width, page_height = landscape(A4)
+    else:
+        page_width, page_height = A4
+
+    canvas = Canvas(str(pdf_path), pagesize=(page_width, page_height))
+
+    bg_color = img.getpixel((0, 0))
+    r, g, b = (c / 255.0 for c in bg_color)
+    canvas.setFillColorRGB(r, g, b)
+    canvas.rect(0, 0, page_width, page_height, fill=1, stroke=0)
+
+    scale = min(page_width / img.width, page_height / img.height)
+    w = img.width * scale
+    h = img.height * scale
+    x = (page_width - w) / 2
+    y = (page_height - h) / 2
+    canvas.drawImage(ImageReader(img), x, y, width=w, height=h)
+    canvas.showPage()
+    canvas.save()
+
+
+def save_clue_grid_pdf(
+    row_clues: List[List[int]],
+    col_clues: List[List[int]],
+    pdf_path: str,
+    cell_size: int = 20,
+    image_path: Optional[str] = None,
+) -> None:
+    """Render clues and save them as a nicely formatted A4 PDF."""
+    img = render_clue_grid(
+        row_clues=row_clues,
+        col_clues=col_clues,
+        cell_size=cell_size,
+        image_path=image_path,
+    )
+    _save_image_as_a4_pdf(img, pdf_path)
