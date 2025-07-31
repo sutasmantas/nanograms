@@ -14,23 +14,37 @@ def grid_from_array(arr) -> Grid:
 def adapt_grid_for_unique_solution(grid: Grid, max_attempts: int = 1000) -> Tuple[Grid, bool]:
     """Return a modified grid with a unique solution if possible."""
     import numpy as np
+    import random
 
+    grid = [row[:] for row in grid]
     attempt = 0
     while attempt < max_attempts:
         clues_row, clues_col = extract_clues(np.array(grid, dtype=np.uint8))
         solutions = solve_nonogram(clues_row, clues_col, max_solutions=2)
         if len(solutions) == 1:
             return grid, True
-        if len(solutions) == 0:
-            # no solution, revert last change by continuing with attempt++ to break
+        if len(solutions) < 2:
             break
-        # more than one solution - find a differing cell between first two
+
         sol_a, sol_b = solutions[0], solutions[1]
-        diff = [(i, j) for i in range(len(grid)) for j in range(len(grid[0])) if sol_a[i][j] != sol_b[i][j]]
-        if not diff:
+
+        # choose a solution that differs from the current grid so that a change
+        # is actually made. if both differ, pick the one farther from the grid
+        if sol_a == grid:
+            target = sol_b
+        elif sol_b == grid:
+            target = sol_a
+        else:
+            diff_a = sum(sol_a[i][j] != grid[i][j] for i in range(len(grid)) for j in range(len(grid[0])))
+            diff_b = sum(sol_b[i][j] != grid[i][j] for i in range(len(grid)) for j in range(len(grid[0])))
+            target = sol_a if diff_a >= diff_b else sol_b
+
+        diff_cells = [(i, j) for i in range(len(grid)) for j in range(len(grid[0])) if grid[i][j] != target[i][j]]
+        if not diff_cells:
             break
-        i, j = diff[0]
-        grid[i][j] = sol_a[i][j]
+
+        i, j = random.choice(diff_cells)
+        grid[i][j] = target[i][j]
         attempt += 1
     return grid, False
 
